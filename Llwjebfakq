@@ -1,1 +1,188 @@
-i
+pcall(function()
+    workspace.StreamingEnabled = false
+    workspace.SimulationRadius = math.huge
+end)
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local StarterGui = game:GetService("StarterGui")
+
+local player = Players.LocalPlayer
+local char = player.Character or player.CharacterAdded:Wait()
+local hrp = char:WaitForChild("HumanoidRootPart")
+local humanoid = char:WaitForChild("Humanoid")
+
+-- Bất tử
+humanoid.MaxHealth = math.huge
+humanoid.Health = humanoid.MaxHealth
+
+local healthConn = humanoid.HealthChanged:Connect(function(newHealth)
+    if newHealth < humanoid.MaxHealth then
+        humanoid.Health = humanoid.MaxHealth
+    end
+end)
+
+local networkFolder = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Network")
+local ActivatePromise = networkFolder.RemotePromise.Remotes.C_ActivateObject
+
+local remotesRoot = ReplicatedStorage:WaitForChild("Remotes")
+local EndDecisionRemote = remotesRoot:WaitForChild("EndDecision")
+
+local bondData = {}
+local seenKeys = {}
+
+-- UI counter
+local function createCounterUI()
+    local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+    screenGui.Name = "BondCounterUI"
+    local textLabel = Instance.new("TextLabel", screenGui)
+    textLabel.Name = "Counter"
+    textLabel.Size = UDim2.new(0, 200, 0, 40)
+    textLabel.Position = UDim2.new(0, 10, 0, 40)
+    textLabel.BackgroundTransparency = 0.5
+    textLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    textLabel.TextColor3 = Color3.new(1, 1, 1)
+    textLabel.Font = Enum.Font.SourceSansBold
+    textLabel.TextSize = 22
+    textLabel.Text = "Bond: 0 / ?"
+    return textLabel
+end
+
+local counterLabel = createCounterUI()
+
+-- Ghi lại vị trí bond
+local function recordBonds()
+    local runtime = Workspace:WaitForChild("RuntimeItems")
+    for _, item in ipairs(runtime:GetChildren()) do
+        if item.Name:match("Bond") then
+            local part = item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")
+            if part then
+                local key = ("%.1f_%.1f_%.1f"):format(part.Position.X, part.Position.Y, part.Position.Z)
+                if not seenKeys[key] then
+                    seenKeys[key] = true
+                    table.insert(bondData, { item = item, pos = part.Position, key = key })
+                end
+            end
+        end
+    end
+end
+
+print("=== Starting map scan ===")
+
+local function tweenTo(positionCFrame)
+    local tweenInfo = TweenInfo.new(0.45, Enum.EasingStyle.Linear)
+    local goal = { CFrame = positionCFrame }
+    local tween = TweenService:Create(hrp, tweenInfo, goal)
+    tween:Play()
+    tween.Completed:Wait()
+end
+
+-- Scan map để tìm bond
+local scanTarget = CFrame.new(-424.448975, 16.055481, -49040.6562, -1,0,0, 0,1,0, 0,0,-1)
+local scanSteps = 50
+for i = 1, scanSteps do
+    local stepCFrame = hrp.CFrame:Lerp(scanTarget, i/scanSteps)
+    tweenTo(stepCFrame)
+    recordBonds()
+    task.wait(0.09)
+end
+
+tweenTo(scanTarget)
+task.wait(0.2)
+recordBonds()
+
+print(("→ %d Bonds found"):format(#bondData))
+if #bondData == 0 then
+    warn("Không tìm thấy bond nào – kiểm tra RuntimeItems.")
+    return
+end
+
+counterLabel.Text = string.format("Bond: 0 / %d", #bondData)
+
+-- Tìm MaximGun và ghế
+local runtimeItems = workspace:WaitForChild("RuntimeItems")
+local gun = runtimeItems:FindFirstChild("MaximGun")
+
+if not gun or not gun:FindFirstChild("VehicleSeat") then
+    warn("Không tìm thấy MaximGun, thử lại lần 2...")
+    task.wait(1)
+    gun = runtimeItems:FindFirstChild("MaximGun")
+    if not gun or not gun:FindFirstChild("VehicleSeat") then
+        warn("Lần 2 vẫn không tìm được MaximGun – tự sát đợi ván mới.")
+        
+        -- Gỡ bất tử và tự sát
+        if healthConn then healthConn:Disconnect() end
+        humanoid.MaxHealth = 100
+        humanoid.Health = 100
+        task.wait(0.2)
+        humanoid:TakeDamage(999999)
+        EndDecisionRemote:FireServer(false)
+        return
+    end
+end
+
+local seat = gun.VehicleSeat
+char:SetPrimaryPartCFrame(seat.CFrame + Vector3.new(0, 3, 0))
+task.wait(0.3)
+seat:Sit(humanoid)
+repeat task.wait() until humanoid.SeatPart == seat
+humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+task.delay(0.05, function()
+    seat:Sit(humanoid)
+end)
+
+-- Nghe phím space
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.Space and humanoid.SeatPart == seat then
+        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        task.delay(0.1, function()
+            seat:Sit(humanoid)
+        end)
+    end
+end)
+
+-- Lụm bond và xử lý rollback
+for idx, entry in ipairs(bondData) do
+    print(("--- Bond %d/%d: %s ---"):format(idx, #bondData, entry.key))
+    local targetCFrame = CFrame.new(entry.pos) * CFrame.new(0, 2, 0)
+
+    seat:PivotTo(targetCFrame)
+    task.wait(0.25)
+
+    -- Check rollback
+    local dist = (hrp.Position - targetCFrame.Position).Magnitude
+    if dist > 8 then
+        print("Bị TP ngược, nhảy và ngồi lại.")
+        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        task.wait(0.2)
+        seat:Sit(humanoid)
+        task.wait(0.2)
+        seat:PivotTo(targetCFrame)
+        task.wait(0.25)
+    end
+
+    if humanoid.SeatPart ~= seat then
+        seat:Sit(humanoid)
+        task.wait(0.2)
+    end
+
+    if entry.item and entry.item.Parent then
+        ActivatePromise:FireServer(entry.item)
+        task.wait(0.35)
+    end
+
+    counterLabel.Text = string.format("Bond: %d / %d", idx, #bondData)
+end
+
+-- Kết thúc ván: Gỡ bất tử và tự sát
+if healthConn then healthConn:Disconnect() end
+humanoid.MaxHealth = 100
+humanoid.Health = 100
+task.wait(0.2)
+humanoid:TakeDamage(999999)
+EndDecisionRemote:FireServer(false)
+print("=== Xong xuôi rồi đấy, đợi ván mới thôi ===")
