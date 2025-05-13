@@ -195,10 +195,10 @@ local data = {
     ["embeds"] = {
         {
             ["title"] = "Dead Rails | Auto Bond Farm V1",
-            ["description"] = string.format("User: **%s** ÄĂ£ Nháº·t Xong Bond!", username),
+            ["description"] = string.format("User: **%s** Đã Nhặt Xong Bond!", username),
             ["fields"] = {
                 {
-                    ["name"] = "Sá»‘ Bond Nháº·t ÄÆ°á»£c:",
+                    ["name"] = " Số Bond Đã Nhặt được:",
                     ["value"] = tostring(#bondData),
                     ["inline"] = true
                 }
