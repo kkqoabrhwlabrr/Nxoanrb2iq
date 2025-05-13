@@ -15,7 +15,7 @@ local char = player.Character or player.CharacterAdded:Wait()
 local hrp = char:WaitForChild("HumanoidRootPart")
 local humanoid = char:WaitForChild("Humanoid")
 
--- Bất tử
+-- Báº¥t tá»­
 humanoid.MaxHealth = math.huge
 humanoid.Health = humanoid.MaxHealth
 
@@ -53,7 +53,7 @@ end
 
 local counterLabel = createCounterUI()
 
--- Ghi lại vị trí bond
+-- Ghi láº¡i vá»‹ trĂ­ bond
 local function recordBonds()
     local runtime = Workspace:WaitForChild("RuntimeItems")
     for _, item in ipairs(runtime:GetChildren()) do
@@ -80,7 +80,7 @@ local function tweenTo(positionCFrame)
     tween.Completed:Wait()
 end
 
--- Scan map để tìm bond
+-- Scan map Ä‘á»ƒ tĂ¬m bond
 local scanTarget = CFrame.new(-424.448975, 16.055481, -49040.6562, -1,0,0, 0,1,0, 0,0,-1)
 local scanSteps = 50
 for i = 1, scanSteps do
@@ -94,26 +94,26 @@ tweenTo(scanTarget)
 task.wait(0.2)
 recordBonds()
 
-print(("→ %d Bonds found"):format(#bondData))
+print(("â†’ %d Bonds found"):format(#bondData))
 if #bondData == 0 then
-    warn("Không tìm thấy bond nào – kiểm tra RuntimeItems.")
+    warn("KhĂ´ng tĂ¬m tháº¥y bond nĂ o â€“ kiá»ƒm tra RuntimeItems.")
     return
 end
 
 counterLabel.Text = string.format("Bond: 0 / %d", #bondData)
 
--- Tìm MaximGun và ghế
+-- TĂ¬m MaximGun vĂ  gháº¿
 local runtimeItems = workspace:WaitForChild("RuntimeItems")
 local gun = runtimeItems:FindFirstChild("MaximGun")
 
 if not gun or not gun:FindFirstChild("VehicleSeat") then
-    warn("Không tìm thấy MaximGun, thử lại lần 2...")
+    warn("KhĂ´ng tĂ¬m tháº¥y MaximGun, thá»­ láº¡i láº§n 2...")
     task.wait(1)
     gun = runtimeItems:FindFirstChild("MaximGun")
     if not gun or not gun:FindFirstChild("VehicleSeat") then
-        warn("Lần 2 vẫn không tìm được MaximGun – tự sát đợi ván mới.")
+        warn("Láº§n 2 váº«n khĂ´ng tĂ¬m Ä‘Æ°á»£c MaximGun â€“ tá»± sĂ¡t Ä‘á»£i vĂ¡n má»›i.")
         
-        -- Gỡ bất tử và tự sát
+        -- Gá»¡ báº¥t tá»­ vĂ  tá»± sĂ¡t
         if healthConn then healthConn:Disconnect() end
         humanoid.MaxHealth = 100
         humanoid.Health = 100
@@ -134,7 +134,7 @@ task.delay(0.05, function()
     seat:Sit(humanoid)
 end)
 
--- Nghe phím space
+-- Nghe phĂ­m space
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     if input.KeyCode == Enum.KeyCode.Space and humanoid.SeatPart == seat then
@@ -145,7 +145,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
--- Lụm bond và xử lý rollback
+-- Lá»¥m bond vĂ  xá»­ lĂ½ rollback
 for idx, entry in ipairs(bondData) do
     print(("--- Bond %d/%d: %s ---"):format(idx, #bondData, entry.key))
     local targetCFrame = CFrame.new(entry.pos) * CFrame.new(0, 2, 0)
@@ -156,7 +156,7 @@ for idx, entry in ipairs(bondData) do
     -- Check rollback
     local dist = (hrp.Position - targetCFrame.Position).Magnitude
     if dist > 8 then
-        print("Bị TP ngược, nhảy và ngồi lại.")
+        print("Bá»‹ TP ngÆ°á»£c, nháº£y vĂ  ngá»“i láº¡i.")
         humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
         task.wait(0.2)
         seat:Sit(humanoid)
@@ -178,11 +178,53 @@ for idx, entry in ipairs(bondData) do
     counterLabel.Text = string.format("Bond: %d / %d", idx, #bondData)
 end
 
--- Kết thúc ván: Gỡ bất tử và tự sát
+-- Káº¿t thĂºc vĂ¡n: Gá»¡ báº¥t tá»­ vĂ  tá»± sĂ¡t
 if healthConn then healthConn:Disconnect() end
 humanoid.MaxHealth = 100
 humanoid.Health = 100
 task.wait(0.2)
 humanoid:TakeDamage(999999)
 EndDecisionRemote:FireServer(false)
-print("=== Xong xuôi rồi đấy, đợi ván mới thôi ===")
+print("=== Xong xuĂ´i rá»“i Ä‘áº¥y, Ä‘á»£i vĂ¡n má»›i thĂ´i ===")
+
+-- táº¡o embed
+local player = game:GetService("Players").LocalPlayer
+local username = player and player.Name or "Unknown"
+
+local data = {
+    ["embeds"] = {
+        {
+            ["title"] = "Dead Rails | Auto Bond Farm V1",
+            ["description"] = string.format("User: **%s** ÄĂ£ Nháº·t Xong Bond!", username),
+            ["fields"] = {
+                {
+                    ["name"] = "Sá»‘ Bond Nháº·t ÄÆ°á»£c:",
+                    ["value"] = tostring(#bondData),
+                    ["inline"] = true
+                }
+            },
+            ["color"] = 0x00FFFF,
+            ["footer"] = {
+                ["text"] = "XuanVP Hub | " .. os.date("%H:%M:%S")
+            },
+            ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")
+        }
+    },
+    ["username"] = "XuanVP"
+}
+
+-- Send webhook
+local headers = {
+    ["Content-Type"] = "application/json"
+}
+local body = game:GetService("HttpService"):JSONEncode(data)
+
+if syn and syn.request then
+    syn.request({Url = _G.url, Method = "POST", Headers = headers, Body = body})
+elseif http and http.request then
+    http.request({Url = _G.url, Method = "POST", Headers = headers, Body = body})
+elseif request then
+    request({Url = _G.url, Method = "POST", Headers = headers, Body = body})
+else
+    warn("No HTTP AVAILABLE THá»¬ LINK WEBHOOK KHĂC.")
+end
