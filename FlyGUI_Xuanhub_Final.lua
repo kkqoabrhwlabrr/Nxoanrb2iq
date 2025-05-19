@@ -43,12 +43,23 @@ task.spawn(function()
             -- Đợi ngồi vào ghế
             repeat task.wait(0.1) until seat.Occupant == humanoid
 
-            -- Đứng lên (rời khỏi ghế bằng dịch chuyển)
-            hrp.CFrame = hrp.CFrame * CFrame.new(3, 0, 0)
+            -- Đứng lên (hủy trạng thái ngồi + dịch chuyển ra ngoài)
+            humanoid.Sit = false
             task.wait(0.2)
+            hrp.CFrame = hrp.CFrame * CFrame.new(3, 0, 0)
 
-            -- Ngồi lại chính xác ghế đó bằng lệnh Sit
-            seat:Sit(humanoid)
+            -- Chờ 1 giây rồi ngồi lại
+            task.wait(0.2)
+            
+            -- Dịch chuyển lại đúng ghế
+            hrp.CFrame = seat.CFrame
+            task.wait(0.1)
+
+            -- Ngồi lại, lặp cho đến khi chắc chắn đã ngồi
+            repeat
+                seat:Sit(humanoid)
+                task.wait(0.2)
+            until seat.Occupant == humanoid
         end
     end
 end)
